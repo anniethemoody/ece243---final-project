@@ -102,14 +102,26 @@ void clear_screen();
 * but now instead of always reading, keyboard input interrupts!!
 ********************************************************************************/
 char byte1 = 0, byte2 = 0, byte3 = 0;
-int x = 50;
-int y = 100;
-int dx = 0;
-int dy = 0;
-bool jump = false;
-int countJumpFrame = 0;
-int prevXPositions[3] = {0};
-int prevYPositions[3] = {0};
+int xRED = 50;
+int yRED = 100;
+int dxRED = 0;
+int dyRED = 0;
+
+bool jumpRED = false;
+int countJumpFrameRED = 0;
+int prevXPositionsRED[3] = {0};
+int prevYPositionsRED[3] = {0};
+
+int xBLUE = 100;
+int yBLUE = 150;
+int dxBLUE = 0;
+int dyBLUE = 0;
+
+bool jumpBLUE = false;
+int countJumpFrameBLUE = 0;
+int prevXPositionsBLUE[3] = {0};
+int prevYPositionsBLUE[3] = {0};
+
 int prev = 0;
 volatile int pixel_buffer_start; // global variable
 
@@ -148,7 +160,7 @@ int main(void) {
     {
         HEX_PS2(byte1, byte2, byte3); //display make/break codes  
         changeBoxPosition(byte2, byte3); 
-        draw_box(50, 108, BLUE);
+        draw_box(50, 108, GREEN);
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
@@ -322,79 +334,108 @@ void HEX_PS2(char b1, char b2, char b3) {
 }
 
 void changeBoxPosition(char b2, char b3) {
-    if (x+dx < 320 || x+dx > 0) {
-			x += dx;
-    }
-	if (y+dy < 240 || y+dy > 0) {
-			y += dy;
-	}
     int temp_x = 0;
 	int temp_y = 0;
-    // if (prev == 0) {
-    //     prevXPositions[0] = x;
-    //     prevYPositions[0] = y;
-    //     temp_x = prevXPositions[1];
-    //     temp_y = prevYPositions[1];
-    // }
-    // else if (prev == 1) {
-    //     prevXPositions[1] = x;
-    //     prevYPositions[1] = y;
-    //     temp_x = prevXPositions[2];
-    //     temp_y = prevYPositions[2];
-    // }
-    // else if (prev == 2) {
-    //     prevXPositions[2] = x;
-    //     prevYPositions[2] = y;
-    //     temp_x = prevXPositions[0];
-    //     temp_y = prevYPositions[0];
-    // }
-    prevXPositions[prev] = x;
-    prevYPositions[prev] = y;
-    temp_x = prevXPositions[(prev + 1)%3];
-    temp_y = prevYPositions[(prev + 1)%3];
+    if (xRED+dxRED < 320 || xRED+dxRED > 0) {
+			xRED += dxRED;
+    }
+	if (yRED+dyRED < 240 || yRED+dyRED > 0) {
+			yRED += dyRED;
+	}
+    if (xBLUE+dxBLUE < 320 || xBLUE+dxBLUE > 0) {
+			xBLUE += dxBLUE;
+    }
+	if (yBLUE+dyBLUE < 240 || yBLUE+dyBLUE > 0) {
+			yBLUE += dyBLUE;
+	}
+    
+    prevXPositionsRED[prev] = xRED;
+    prevYPositionsRED[prev] = yRED;
+    temp_x = prevXPositionsRED[(prev + 1)%3];
+    temp_y = prevYPositionsRED[(prev + 1)%3];
+    draw_box(temp_x, temp_y, 0x0);
+
+    prevXPositionsBLUE[prev] = xBLUE;
+    prevYPositionsBLUE[prev] = yBLUE;
+    temp_x = prevXPositionsBLUE[(prev + 1)%3];
+    temp_y = prevYPositionsBLUE[(prev + 1)%3];
+    draw_box(temp_x, temp_y, 0x0);
+
+
     if (prev < 2) {
         prev += 1;
     }
     else {
         prev = 0;
     }
-    draw_box(temp_x, temp_y, 0x0);
-    draw_box(x, y, RED);
-    if (jump) {
-        if (countJumpFrame < 12 && dy == -2) {
-            countJumpFrame += 1;
+    
+    draw_box(xRED, yRED, RED);
+    draw_box(xBLUE, yBLUE, CYAN);
+    if (jumpRED) {
+        if (countJumpFrameRED < 12 && dyRED == -2) {
+            countJumpFrameRED += 1;
         }
         else {
-            dy = 2;
-            if (countJumpFrame < 0) {
-                dy = 0;
-                jump = false;
+            dyRED = 2;
+            if (countJumpFrameRED < 0) {
+                dyRED = 0;
+                jumpRED = false;
             }
-            countJumpFrame -=1;
+            countJumpFrameRED -=1;
         }
     }
 
-    if (b2 != 0xF0) {
-        if (b3 == 0x23) {
-            dx = 1;
+    if (jumpBLUE) {
+        if (countJumpFrameBLUE < 12 && dyBLUE == -2) {
+            countJumpFrameBLUE += 1;
         }
-        else if (b3 == 0x1C) {
-            dx = -1;
-        }
-        else if (b3 == 0x1D) {
-            //dy = -1;
-            if (!jump) {
-                dy = -2;
-                countJumpFrame = 0;
-                jump = true;
+        else {
+            dyBLUE = 2;
+            if (countJumpFrameBLUE < 0) {
+                dyBLUE = 0;
+                jumpBLUE = false;
             }
+            countJumpFrameBLUE -=1;
+        }
+    }
+
+    
+    if (b2 == 0xF0) {
+        if (b3 == 0x23 || b3 == 0x1C) {
+            dxRED = 0;
+        }
+        if (b3 == 0x74 || b3 == 0x6B) {
+            dxBLUE = 0;
         }
     }
     else {
-        dx = 0;
-        //dy = 0;
+        if (b3 == 0x23) {
+            dxRED = 1;
+        }
+        else if (b3 == 0x1C) {
+            dxRED = -1;
+        }
+        else if (b3 == 0x1D) {
+            if (!jumpRED) {
+                dyRED = -2;
+                countJumpFrameRED = 0;
+                jumpRED = true;
+            }
+        }
+        else if (b3 == 0x74) {
+            dxBLUE = 1;
+        }
+        else if (b3 == 0x6B) {
+            dxBLUE = -1;
+        }
+        else if (b3 == 0x75) {
+            if (!jumpBLUE) {
+                dyBLUE = -2;
+                countJumpFrameBLUE = 0;
+                jumpBLUE = true;
+            }
+        }
     }
-    
     return;
 }
 
