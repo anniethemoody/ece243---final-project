@@ -143,11 +143,12 @@ int main(void) {
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen(); // pixel_buffer_start points to the pixel buffer
 
-
+    
     while (1) // wait for an interrupt
     {
         HEX_PS2(byte1, byte2, byte3); //display make/break codes  
         changeBoxPosition(byte2, byte3); 
+        draw_box(50, 108, BLUE);
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
@@ -365,7 +366,7 @@ void changeBoxPosition(char b2, char b3) {
         }
         else {
             dy = 2;
-            if (countJumpFrame == 0) {
+            if (countJumpFrame < 0) {
                 dy = 0;
                 jump = false;
             }
