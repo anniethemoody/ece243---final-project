@@ -5,11 +5,13 @@ void config_PS2(void);
 void enable_A9_interrupts(void);
 void PS2_ISR(void);
 void HEX_PS2(char b1, char b2, char b3);
-void changeBoxPosition(char b2, char b3);
+void changePlayerPosition(char b2, char b3);
 void draw_box(int x, int y, int box_color);
 void plot_pixel(int x, int y, short int line_color);
 void wait_for_vsync();
 void clear_screen();
+short int readPixelColor(int x, int y);
+void draw_horizontal_line(int y, int line_color);
 
 /* This files provides address values that exist in the system */
 
@@ -101,28 +103,32 @@ void clear_screen();
 * basically this is the example code for the ps2 port (hex display make break codes) 
 * but now instead of always reading, keyboard input interrupts!!
 ********************************************************************************/
-char byte1 = 0, byte2 = 0, byte3 = 0;
+// global variables
+char byte1 = 0, byte2 = 0, byte3 = 0; // im still using the byte stuff from the example ps2 code but there's probably a better way to read things
+
+// red box
 int xRED = 50;
 int yRED = 100;
 int dxRED = 0;
 int dyRED = 0;
-
 bool jumpRED = false;
 int countJumpFrameRED = 0;
 int prevXPositionsRED[3] = {0};
 int prevYPositionsRED[3] = {0};
 
+// blue box
 int xBLUE = 100;
-int yBLUE = 150;
+int yBLUE = 100;
 int dxBLUE = 0;
 int dyBLUE = 0;
-
 bool jumpBLUE = false;
 int countJumpFrameBLUE = 0;
 int prevXPositionsBLUE[3] = {0};
 int prevYPositionsBLUE[3] = {0};
 
+// prev counter
 int prev = 0;
+
 volatile int pixel_buffer_start; // global variable
 
 // main program
@@ -155,12 +161,17 @@ int main(void) {
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
 	clear_screen(); // pixel_buffer_start points to the pixel buffer
 
-    
     while (1) // wait for an interrupt
     {
-        HEX_PS2(byte1, byte2, byte3); //display make/break codes  
-        changeBoxPosition(byte2, byte3); 
-        draw_box(50, 108, GREEN);
+        
+        draw_horizontal_line(108, GREEN); // platform so the squares don't drop through the void
+        //draw_box(50, 108, GREEN);
+        draw_box(75, 100, GREEN); // obstacle 1
+        draw_box(85, 80, GREEN); // obstacle 2
+        HEX_PS2(byte1, byte2, byte3); //display make/break codes on hex
+        changePlayerPosition(byte2, byte3); // draw player squares
+
+        // sync vga
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
@@ -170,7 +181,7 @@ void config_PS2() {
     volatile int * ps2_ptr = (int *) 0xFF200100; // pushbutton KEY base address
     *(ps2_ptr+1) = 0x1;
 }
-/* This file:
+/* Below:
 * 1. defines exception vectors for the A9 processor
 * 2. provides code that sets the IRQ mode stack, and that dis/enables
 * interrupts
@@ -278,6 +289,7 @@ void config_interrupt(int N, int CPU_target) {
     * appropriate byte */
     *(char *)address = (char)CPU_target;
 }
+
 /********************************************************************
 * PS2 - Interrupt Service Routine
 *
@@ -287,27 +299,23 @@ void config_interrupt(int N, int CPU_target) {
 void PS2_ISR(void) {
     volatile int * PS2_ptr = (int *)PS2_BASE;
 	
-	 int PS2_data, RVALID;
-	// char byte1 = 0, byte2 = 0, byte3 = 0;
-	// PS/2 mouse needs to be reset (must be already plugged in)
-	// *(PS2_ptr) = 0xFF; // reset
-	//while (1) {
-		PS2_data = *(PS2_ptr); // read the Data register in the PS/2 port
-		RVALID = PS2_data & 0x8000; // extract the RVALID field
-		if (RVALID) {
-			/* shift the next data byte into the display */
-			byte1 = byte2;
-			byte2 = byte3;
-			byte3 = PS2_data & 0xFF;
-			//HEX_PS2(byte1, byte2, byte3);
-            if ((byte2 == (char)0xAA) && (byte3 == (char)0x00))
-			// mouse inserted; initialize sending of data
-			*(PS2_ptr) = 0xF4;
-		}
-	//}
+	int PS2_data, RVALID;
+    PS2_data = *(PS2_ptr); // read the Data register in the PS/2 port
+    RVALID = PS2_data & 0x8000; // extract the RVALID field
+    if (RVALID) {
+        /* shift the next data byte into the display */
+        byte1 = byte2;
+        byte2 = byte3;
+        byte3 = PS2_data & 0xFF;
+        //HEX_PS2(byte1, byte2, byte3);
+        if ((byte2 == (char)0xAA) && (byte3 == (char)0x00))
+        // mouse inserted; initialize sending of data
+            *(PS2_ptr) = 0xF4;
+    }
     return;
 }
 
+// display make break codes on hex display
 void HEX_PS2(char b1, char b2, char b3) {
 	volatile int * HEX3_HEX0_ptr = (int *)HEX3_HEX0_BASE;
 	volatile int * HEX5_HEX4_ptr = (int *)HEX5_HEX4_BASE;
@@ -333,35 +341,47 @@ void HEX_PS2(char b1, char b2, char b3) {
 	*(HEX5_HEX4_ptr) = *(int *)(hex_segs + 4);
 }
 
-void changeBoxPosition(char b2, char b3) {
+// cursed function
+void changePlayerPosition(char b2, char b3) {
+    // variables for storing previous positions
     int temp_x = 0;
 	int temp_y = 0;
-    if (xRED+dxRED < 320 || xRED+dxRED > 0) {
-			xRED += dxRED;
+
+    // edge cases if players hit boundary of vga
+    if (xRED+dxRED > 320 - 7 || xRED+dxRED < 0) {
+        dxRED = 0;
     }
-	if (yRED+dyRED < 240 || yRED+dyRED > 0) {
-			yRED += dyRED;
+    if (yRED+dyRED > 240 -  7 || yRED+dyRED < 0) {
+		dyRED = 0;
 	}
-    if (xBLUE+dxBLUE < 320 || xBLUE+dxBLUE > 0) {
-			xBLUE += dxBLUE;
+    if (xBLUE+dxBLUE > 320 - 7 || xBLUE+dxBLUE < 0) {
+        dxBLUE = 0;
     }
-	if (yBLUE+dyBLUE < 240 || yBLUE+dyBLUE > 0) {
-			yBLUE += dyBLUE;
+	if (yBLUE+dyBLUE > 240 - 7 || yBLUE+dyBLUE < 0) {
+		dyBLUE = 0;
 	}
     
+    // change player position
+    xRED += dxRED;
+    yRED += dyRED;
+    xBLUE += dxBLUE;
+    yBLUE += dyBLUE;
+
+    // find and erase previous square positions
+    // red
     prevXPositionsRED[prev] = xRED;
     prevYPositionsRED[prev] = yRED;
     temp_x = prevXPositionsRED[(prev + 1)%3];
     temp_y = prevYPositionsRED[(prev + 1)%3];
     draw_box(temp_x, temp_y, 0x0);
-
+    // blue
     prevXPositionsBLUE[prev] = xBLUE;
     prevYPositionsBLUE[prev] = yBLUE;
     temp_x = prevXPositionsBLUE[(prev + 1)%3];
     temp_y = prevYPositionsBLUE[(prev + 1)%3];
     draw_box(temp_x, temp_y, 0x0);
 
-
+    // counter for previous position vector
     if (prev < 2) {
         prev += 1;
     }
@@ -369,23 +389,25 @@ void changeBoxPosition(char b2, char b3) {
         prev = 0;
     }
     
+    // draw players
     draw_box(xRED, yRED, RED);
     draw_box(xBLUE, yBLUE, CYAN);
-    if (jumpRED) {
+
+    // jump height
+    if (jumpRED) { //red
         if (countJumpFrameRED < 12 && dyRED == -2) {
             countJumpFrameRED += 1;
         }
         else {
             dyRED = 2;
-            if (countJumpFrameRED < 0) {
-                dyRED = 0;
-                jumpRED = false;
-            }
-            countJumpFrameRED -=1;
+            // if (countJumpFrameRED < 0) {
+            //     dyRED = 0;
+            //     jumpRED = false;
+            // }
+            // countJumpFrameRED -=1;
         }
     }
-
-    if (jumpBLUE) {
+    if (jumpBLUE) { //blue
         if (countJumpFrameBLUE < 12 && dyBLUE == -2) {
             countJumpFrameBLUE += 1;
         }
@@ -399,7 +421,7 @@ void changeBoxPosition(char b2, char b3) {
         }
     }
 
-    
+    // read keyboard input 
     if (b2 == 0xF0) {
         if (b3 == 0x23 || b3 == 0x1C) {
             dxRED = 0;
@@ -416,7 +438,7 @@ void changeBoxPosition(char b2, char b3) {
             dxRED = -1;
         }
         else if (b3 == 0x1D) {
-            if (!jumpRED) {
+            if (!jumpRED && dyRED == 0) {
                 dyRED = -2;
                 countJumpFrameRED = 0;
                 jumpRED = true;
@@ -436,6 +458,62 @@ void changeBoxPosition(char b2, char b3) {
             }
         }
     }
+
+    // fall if there is no platform beneath square (only for red square so far cause i was testing)
+    if (!jumpRED) {
+        bool fall = true;
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+i, yRED+8);
+            if (color == GREEN) {
+                fall = false;
+            }
+        }
+        if (fall) {
+            dyRED = 2;
+        }
+        else {
+            dyRED = 0;
+        }
+    }
+    
+    // check if there is platform beneath
+    // if so stop jumping 
+    for (int i = 0; i < 8; i++) {
+        short int color = readPixelColor(xRED+i+dxRED, yRED+dyRED+6);
+        if (color == GREEN) {
+            dyRED = 0;
+            jumpRED = false;
+        }
+    }
+
+    // for collision if there is platform above square
+    if (dyRED == -2) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+i, yRED-1);
+            if (color == GREEN) {
+                dyRED = 2;
+                jumpRED = false;
+            }
+        }
+    }
+
+   // for horizontal collision with platforms 
+    if (dxRED == 1) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+8, yRED+i);
+            if (color == GREEN) {
+                dxRED = 0;
+            }
+        }
+    }
+    else if (dxRED == -1) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+dxRED, yRED+i);
+            if (color == GREEN) {
+                dxRED = 0;
+            }
+        }
+    }
     return;
 }
 
@@ -443,12 +521,24 @@ void plot_pixel(int x, int y, short int line_color)
 {
 	*(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
+
+short int readPixelColor(int x, int y) {
+    short int color = *(short int *)(pixel_buffer_start + (y << 10) + (x << 1));
+    return color;
+}
 	
 void draw_box(int x, int y, int box_color)
 {
 	for(int i = 0; i < 8; i++) {
 		for(int j = 0; j < 8; j++)
 			plot_pixel(x+i, y+j, box_color);
+	}
+}
+
+void draw_horizontal_line(int y, int line_color)
+{
+	for(int i = 0; i < 320; i++) {
+		plot_pixel(i, y, line_color);
 	}
 }
 
