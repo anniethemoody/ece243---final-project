@@ -104,8 +104,8 @@ short int lightBrown;
 #define RESOLUTION_Y 240
 
 /* box size. */
-#define BOX_X 10
-#define BOX_Y 10
+#define BOX_X 11
+#define BOX_Y 11
 
 /* general speeds */
 #define MOVE_LEFT -3
@@ -131,7 +131,7 @@ short int background[240][320];
 
 // red box
 int xRED = 30;
-int yRED = 187;
+int yRED = 186;
 int dxRED = 0;
 int dyRED = 0;
 bool jumpRED = false;
@@ -578,6 +578,26 @@ void PS2_ISR(void) {
         if ((byte2 == (char)0xAA) && (byte3 == (char)0x00))
         // mouse inserted; initialize sending of data
             *(PS2_ptr) = 0xF4;
+
+        if (byte2 == 0xF0) {
+            if (byte3 == 0x1C)
+            holdLeft = false;
+            if (byte3 == 0x23)
+            holdRight = false;
+        }
+        else {
+            if (byte3 == 0x1C)
+            holdLeft = true;
+            if (byte3 == 0x23)
+            holdRight = true;
+            if (byte3 == 0x1D) {
+            if (!jumpRED && dyRED == 0) {
+                dyRED = JUMP_UP;
+                countJumpFrameRED = 0;
+                jumpRED = true;
+            }
+            }
+        }
     }
     return;
 }
@@ -671,12 +691,12 @@ void changePlayerPosition(char b2, char b3) {
             if (b3 == 0x23) {
                 if (dxRED == MOVE_RIGHT)
                     dxRED = prevXDirectionRED;
-                holdRight = false;
+                //holdRight = false;
             }
             if (b3 == 0x1C) {
                 if (dxRED == MOVE_LEFT)
                     dxRED = prevXDirectionRED;
-                holdLeft = false;
+                //holdLeft = false;
             }
         // }
         if (b3 == 0x74 || b3 == 0x6B) {
@@ -689,22 +709,22 @@ void changePlayerPosition(char b2, char b3) {
                 prevXDirectionRED = dxRED;
             }
             dxRED = MOVE_RIGHT;
-            holdRight = true;
+            ///holdRight = true;
         }
         else if (b3 == 0x1C) {
             if (dxRED != MOVE_LEFT) {
                 prevXDirectionRED = dxRED;
             }
             dxRED = MOVE_LEFT;
-            holdLeft = true;
+            //holdLeft = true;
         }
-        else if (b3 == 0x1D) {
-            if (!jumpRED && dyRED == 0) {
-                dyRED = JUMP_UP;
-                countJumpFrameRED = 0;
-                jumpRED = true;
-            }
-        }
+        // else if (b3 == 0x1D) {
+        //     if (!jumpRED && dyRED == 0) {
+        //         dyRED = JUMP_UP;
+        //         countJumpFrameRED = 0;
+        //         jumpRED = true;
+        //     }
+        // }
         else if (b3 == 0x74) {
             dxBLUE = MOVE_RIGHT;
         }
