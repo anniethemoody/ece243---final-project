@@ -15,6 +15,9 @@ short int readPixelColor(int x, int y);
 void draw_horizontal_line(int y, int line_color);
 void uint8_to_short(const uint8_t* in, short int* out, int rows, int cols);
 void draw_background();
+void checkJump(void);
+void checkCollisionRed(void);
+void checkCollisionBlue(void);
 
 /* This files provides address values that exist in the system */
 
@@ -598,6 +601,7 @@ void changePlayerPosition(char b2, char b3) {
 	int temp_y = 0;
 
     // edge cases if players hit boundary of vga
+    // technically this can't happen due to the boundaries of the background but you never know
     if (xRED+dxRED > 320 - 7 || xRED+dxRED < 0) {
         dxRED = 0;
     }
@@ -644,32 +648,7 @@ void changePlayerPosition(char b2, char b3) {
     draw_box(xBLUE, yBLUE, CYAN);
 
     // jump height
-    if (jumpRED) { //red
-        if (countJumpFrameRED < 12 && dyRED == -2) {
-            countJumpFrameRED += 1;
-        }
-        else {
-            dyRED = 2;
-            // if (countJumpFrameRED < 0) {
-            //     dyRED = 0;
-            //     jumpRED = false;
-            // }
-            // countJumpFrameRED -=1;
-        }
-    }
-    if (jumpBLUE) { //blue
-        if (countJumpFrameBLUE < 12 && dyBLUE == -2) {
-            countJumpFrameBLUE += 1;
-        }
-        else {
-            dyBLUE = 2;
-            if (countJumpFrameBLUE < 0) {
-                dyBLUE = 0;
-                jumpBLUE = false;
-            }
-            countJumpFrameBLUE -=1;
-        }
-    }
+    checkJump();
 
     // read keyboard input 
     if (b2 == 0xF0) {
@@ -682,88 +661,34 @@ void changePlayerPosition(char b2, char b3) {
     }
     else {
         if (b3 == 0x23) {
-            dxRED = 1;
+            dxRED = 2;
         }
         else if (b3 == 0x1C) {
-            dxRED = -1;
+            dxRED = -2;
         }
         else if (b3 == 0x1D) {
             if (!jumpRED && dyRED == 0) {
-                dyRED = -2;
+                dyRED = -3;
                 countJumpFrameRED = 0;
                 jumpRED = true;
             }
         }
         else if (b3 == 0x74) {
-            dxBLUE = 1;
+            dxBLUE = 2;
         }
         else if (b3 == 0x6B) {
-            dxBLUE = -1;
+            dxBLUE = -2;
         }
         else if (b3 == 0x75) {
-            if (!jumpBLUE) {
-                dyBLUE = -2;
+            if (!jumpBLUE && dyBLUE == 0) {
+                dyBLUE = -3;
                 countJumpFrameBLUE = 0;
                 jumpBLUE = true;
             }
         }
     }
-
-    // fall if there is no platform beneath square (only for red square so far cause i was testing)
-    if (!jumpRED) {
-        bool fall = true;
-        for (int i = 0; i < 8; i++) {
-            short int color = readPixelColor(xRED+i, yRED+9);
-            if (color == lightBrown) {
-                fall = false;
-            }
-        }
-        if (fall) {
-            dyRED = 2;
-        }
-        else {
-            dyRED = 0;
-        }
-    }
-    
-    // check if there is platform beneath
-    // if so stop jumping 
-    for (int i = 0; i < 8; i++) {
-        short int color = readPixelColor(xRED+i+dxRED, yRED+dyRED+7);
-        if (color == lightBrown) {
-            dyRED = 0;
-            jumpRED = false;
-        }
-    }
-
-    // for collision if there is platform above square
-    if (dyRED == -2) {
-        for (int i = 0; i < 8; i++) {
-            short int color = readPixelColor(xRED+i, yRED-2);
-            if (color == lightBrown) {
-                dyRED = 2;
-                jumpRED = false;
-            }
-        }
-    }
-
-   // for horizontal collision with platforms 
-    if (dxRED == 1) {
-        for (int i = 0; i < 8; i++) {
-            short int color = readPixelColor(xRED+8, yRED+i);
-            if (color == lightBrown) {
-                dxRED = 0;
-            }
-        }
-    }
-    else if (dxRED == -1) {
-        for (int i = 0; i < 8; i++) {
-            short int color = readPixelColor(xRED+dxRED, yRED+i);
-            if (color == lightBrown) {
-                dxRED = 0;
-            }
-        }
-    }
+    checkCollisionRed();
+    checkCollisionBlue();
     return;
 }
 
@@ -832,4 +757,139 @@ void draw_background()
 			for (int j = 0; j < 320; j++) 
 				plot_pixel(j, i, background[i][j]);
 		}
+}
+
+void checkJump(void){
+    if (jumpRED) { //red
+        if (countJumpFrameRED < 15 && dyRED == -3) {
+            countJumpFrameRED += 1;
+        }
+        else {
+            dyRED = 3;
+        }
+    }
+    if (jumpBLUE) { //blue
+        if (countJumpFrameBLUE < 15 && dyBLUE == -3) {
+            countJumpFrameBLUE += 1;
+        }
+        else {
+            dyBLUE = 3;
+        }
+    }
+}
+
+void checkCollisionRed(void) {
+    // fall if there is no platform beneath square (only for red square so far cause i was testing)
+    if (!jumpRED) {
+        bool fall = true;
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+i, yRED+10);
+            if (color == lightBrown) {
+                fall = false;
+            }
+        }
+        if (fall) {
+            dyRED = 3;
+        }
+        else {
+            dyRED = 0;
+        }
+    }
+    
+    // check if there is platform beneath
+    // if so stop jumping 
+    for (int i = 0; i < 8; i++) {
+        short int color = readPixelColor(xRED+i+dxRED, yRED+dyRED+8);
+        if (color == lightBrown) {
+            dyRED = 0;
+            jumpRED = false;
+        }
+    }
+
+    // for collision if there is platform above square
+    if (dyRED == -3) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+i, yRED-3);
+            if (color == lightBrown) {
+                dyRED = 3;
+                jumpRED = false;
+            }
+        }
+    }
+
+   // for horizontal collision with platforms 
+    if (dxRED == 2) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+9, yRED+i);
+            if (color == lightBrown) {
+                dxRED = 0;
+            }
+        }
+    }
+    else if (dxRED == -2) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xRED+dxRED, yRED+i);
+            if (color == lightBrown) {
+                dxRED = 0;
+            }
+        }
+    }
+}
+
+void checkCollisionBlue(void) {
+    // fall if there is no platform beneath square (only for red square so far cause i was testing)
+    if (!jumpBLUE) {
+        bool fall = true;
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xBLUE+i, yBLUE+10);
+            if (color == lightBrown) {
+                fall = false;
+            }
+        }
+        if (fall) {
+            dyBLUE = 3;
+        }
+        else {
+            dyBLUE = 0;
+        }
+    }
+    
+    // check if there is platform beneath
+    // if so stop jumping 
+    for (int i = 0; i < 8; i++) {
+        short int color = readPixelColor(xBLUE+i+dxBLUE, yBLUE+dyBLUE+8);
+        if (color == lightBrown) {
+            dyBLUE = 0;
+            jumpBLUE = false;
+        }
+    }
+
+    // for collision if there is platform above square
+    if (dyBLUE == -3) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xBLUE+i, yBLUE-3);
+            if (color == lightBrown) {
+                dyBLUE = 3;
+                jumpBLUE = false;
+            }
+        }
+    }
+
+   // for horizontal collision with platforms 
+    if (dxBLUE == 2) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xBLUE+9, yBLUE+i);
+            if (color == lightBrown) {
+                dxBLUE = 0;
+            }
+        }
+    }
+    else if (dxBLUE == -2) {
+        for (int i = 0; i < 8; i++) {
+            short int color = readPixelColor(xBLUE+dxBLUE, yBLUE+i);
+            if (color == lightBrown) {
+                dxBLUE = 0;
+            }
+        }
+    }
 }
