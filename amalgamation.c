@@ -143,8 +143,8 @@ int countJumpFrameRED = 0;
 int prevXPositionsRED[3] = {0,50,50};
 int prevYPositionsRED[3] = {0,50,50};
 int prevXDirectionRED = 0;
-bool holdRight = false;
-bool holdLeft = false;
+bool holdRightRED = false;
+bool holdLeftRED = false;
 
 // blue box
 int xBLUE = 30;
@@ -155,6 +155,9 @@ bool jumpBLUE = false;
 int countJumpFrameBLUE = 0;
 int prevXPositionsBLUE[3] = {0,50,50};
 int prevYPositionsBLUE[3] = {0,50,50};
+int prevXDirectionBLUE = 0;
+bool holdRightBLUE = false;
+bool holdLeftBLUE = false;
 
 // prev counter
 int prev = 0;
@@ -448,6 +451,8 @@ int main(void) {
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
 		pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
+
+
 }
 /* setup the PS2 interrupts in the FPGA */
 void config_PS2() {
@@ -587,21 +592,36 @@ void PS2_ISR(void) {
 
         if (byte2 == 0xF0) {
             if (byte3 == 0x1C)
-            holdLeft = false;
+            holdLeftRED = false;
             if (byte3 == 0x23)
-            holdRight = false;
+            holdRightRED = false;
+            if (byte3 == 0x6B)
+            holdLeftBLUE = false;
+            if (byte3 == 0x74)
+            holdRightBLUE = false;
         }
         else {
             if (byte3 == 0x1C)
-            holdLeft = true;
+            holdLeftRED = true;
             if (byte3 == 0x23)
-            holdRight = true;
+            holdRightRED = true;
+            if (byte3 == 0x6B)
+            holdLeftBLUE = true;
+            if (byte3 == 0x74)
+            holdRightBLUE = true;
             if (byte3 == 0x1D) {
-            if (!jumpRED && dyRED == 0) {
-                dyRED = JUMP_UP;
-                countJumpFrameRED = 0;
-                jumpRED = true;
+                if (!jumpRED && dyRED == 0) {
+                    dyRED = JUMP_UP;
+                    countJumpFrameRED = 0;
+                    jumpRED = true;
+                }
             }
+            if (byte3 == 0x75) {
+                if (!jumpBLUE && dyBLUE == 0) {
+                    dyBLUE = JUMP_UP;
+                    countJumpFrameBLUE = 0;
+                    jumpBLUE = true;
+                }
             }
         }
     }
@@ -692,22 +712,22 @@ void changePlayerPosition(char b2, char b3) {
 
     // read keyboard input 
     if (b2 == 0xF0) {
-        // if (b3 == 0x23 || b3 == 0x1C) {
-        //     dxRED = prevXDirectionRED;
             if (b3 == 0x23) {
                 if (dxRED == MOVE_RIGHT)
                     dxRED = prevXDirectionRED;
-                //holdRight = false;
             }
             if (b3 == 0x1C) {
                 if (dxRED == MOVE_LEFT)
                     dxRED = prevXDirectionRED;
-                //holdLeft = false;
             }
-        // }
-        if (b3 == 0x74 || b3 == 0x6B) {
-            dxBLUE = STILL;
-        }
+            if (b3 == 0x74) {
+                if (dxBLUE == MOVE_RIGHT)
+                    dxBLUE = prevXDirectionBLUE;
+            }
+            if (b3 == 0x6B) {
+                if (dxBLUE == MOVE_LEFT)
+                    dxBLUE = prevXDirectionBLUE;
+            }
     }
     else {
         if (b3 == 0x23) {
@@ -715,39 +735,32 @@ void changePlayerPosition(char b2, char b3) {
                 prevXDirectionRED = dxRED;
             }
             dxRED = MOVE_RIGHT;
-            ///holdRight = true;
         }
         else if (b3 == 0x1C) {
             if (dxRED != MOVE_LEFT) {
                 prevXDirectionRED = dxRED;
             }
             dxRED = MOVE_LEFT;
-            //holdLeft = true;
         }
-        // else if (b3 == 0x1D) {
-        //     if (!jumpRED && dyRED == 0) {
-        //         dyRED = JUMP_UP;
-        //         countJumpFrameRED = 0;
-        //         jumpRED = true;
-        //     }
-        // }
         else if (b3 == 0x74) {
+            if (dxBLUE != MOVE_RIGHT) {
+                prevXDirectionBLUE = dxBLUE;
+            }
             dxBLUE = MOVE_RIGHT;
         }
         else if (b3 == 0x6B) {
-            dxBLUE = MOVE_LEFT;
-        }
-        else if (b3 == 0x75) {
-            if (!jumpBLUE && dyBLUE == 0) {
-                dyBLUE = JUMP_UP;
-                countJumpFrameBLUE = 0;
-                jumpBLUE = true;
+            if (dxBLUE != MOVE_LEFT) {
+                prevXDirectionBLUE = dxBLUE;
             }
+            dxBLUE = MOVE_LEFT;
         }
     }
 
-    if (!holdLeft && !holdRight) {
+    if (!holdLeftRED && !holdRightRED) {
         dxRED = STILL;
+    }
+    if (!holdLeftBLUE && !holdRightBLUE) {
+        dxBLUE = STILL;
     }
     checkCollisionRed();
     checkCollisionBlue();
@@ -897,6 +910,30 @@ void checkCollisionRed(void) {
             }
         }
     }
+
+    // if(dyRED==0&&!jumpRED){
+    //     bool landed = false;
+    //     for (int i = 0; i < BOX_X; i++) {
+    //         short int color = readPixelColor(xRED+i, yRED+BOX_Y);
+    //         if (color == lightBrown) {
+    //             landed = true;
+    //         }
+    //     }
+    //     if (!landed) {
+    //         int count = 1;
+    //         while (!landed) {
+    //             for (int i = 0; i < BOX_X; i++) {
+    //                 short int color = readPixelColor(xRED+i, yRED+BOX_Y+count);
+    //                 if (color == lightBrown) {
+    //                     landed = true;
+    //                 }
+    //                 else
+    //                     count += 1;
+    //             }
+    //         }
+    //         yRED += count;
+    //     }
+    // }
 
    // for horizontal collision with platforms 
     if (dxRED == MOVE_RIGHT) {
