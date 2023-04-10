@@ -749,8 +749,8 @@ int main(void) {
             prevYPositionsRED[2] = 50;
             prevYPositionsRED[3] = 50;
             prevXDirectionRED = 0;
-            holdRight = false;
-            holdLeft = false;
+            holdRightRED = false;
+            holdLeftRED = false;
 
             // blue box
             xBLUE = 30;
@@ -763,6 +763,8 @@ int main(void) {
             prevXPositionsBLUE[3] = 50;
             prevYPositionsBLUE[2] = 50;
             prevYPositionsBLUE[3] = 50;
+            holdRightBLUE = false;
+            holdLeftBLUE = false;
 
             // prev counter
              prev = 0;
