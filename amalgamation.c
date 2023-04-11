@@ -76,8 +76,7 @@ void draw_die();
 void checkJump(void);
 void checkCollisionRed(void);
 void checkCollisionBlue(void);
-void storeBackground();
-void storeDie();
+void checkDoor(void);
 
 /* This files provides address values that exist in the system */
 
@@ -214,6 +213,8 @@ int main(void) {
 	lightBrown = readPixelColor(0,0);
 	poolRED = readPixelColor(148,240-7);
 	poolBLUE = readPixelColor(212,240-7);
+    doorRED = readPixelColor(320-60, 40);
+    doorBLUE = readPixelColor(320-32, 40);
 	
     while (1) // wait for an interrupt
     {
@@ -627,6 +628,7 @@ void changePlayerPosition(char b2, char b3) {
     }
     checkCollisionRed();
     checkCollisionBlue();
+    checkDoor();
     return;
 }
 
@@ -924,6 +926,14 @@ void checkCollisionBlue(void) {
             if (color == lightBrown) {
                 dxBLUE = STILL;
             }
+        }
+    }
+}
+
+void checkDoor(void) {
+    if ((readPixelColor(xRED+1, yRED - 1) == doorRED) || (readPixelColor(xRED+BOX_X-2, yRED - 1) == doorRED)) {
+        if ((readPixelColor(xBLUE+1, yBLUE - 1) == doorBLUE) || (readPixelColor(xBLUE+BOX_X-2, yBLUE - 1) == doorBLUE)) {
+            die = true;
         }
     }
 }
