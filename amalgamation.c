@@ -96,6 +96,7 @@ void checkJump(void);
 void checkCollisionRed(void);
 void checkCollisionBlue(void);
 void checkDoor(void);
+void draw_elevator();
 
 /* This files provides address values that exist in the system */
 
@@ -999,24 +1000,11 @@ void checkCollisionBlue(void) {
 
 void draw_elevator()
 {
+    // variables for storing previous positions
+    int temp_x = 0;
+    int temp_y = 0;
     if(elevatorPushedRED || elevatorPushedBLUE)
     {
-        // variables for storing previous positions
-        int temp_x = 0;
-        int temp_y = 0;
-
-        //if user gets onto the elevator
-        if(dyELEVATOR == 0 && elevator1_y == 118)
-            dyELEVATOR = 1;
-        
-        else if(dyELEVATOR == 0 && elevator1_y == 156)
-            dyELEVATOR = -1;
-
-        if(dyELEVATOR != 0 && (elevator1_y + dyELEVATOR < 118 || elevator1_y + dyELEVATOR > 156))
-        {
-            dyELEVATOR = 0;
-        }
-        
         // change elevator position
         elevator1_y += dyELEVATOR;
 
@@ -1038,9 +1026,27 @@ void draw_elevator()
 
         draw_horizontal_line(elevator1_x,elevator1_y,GREEN);
 
+        //if user gets onto the elevator
+        if(dyELEVATOR == 0 && elevator1_y == 118)
+            dyELEVATOR = 1;
+        
+        else if(dyELEVATOR == 0 && elevator1_y == 156)
+            dyELEVATOR = -1;
+
+        if(dyELEVATOR != 0 && (elevator1_y + dyELEVATOR < 118 || elevator1_y + dyELEVATOR > 156))
+        {
+            dyELEVATOR = 0;
+        }
+
     }
     else
     {
+        prevXPositionsELEVATOR1[prevElevator] = elevator1_x;
+        prevYPositionsELEVATOR1[prevElevator] = elevator1_y;
+        temp_x = prevXPositionsELEVATOR1[(prevElevator+1 )%3];
+        temp_y = prevYPositionsELEVATOR1[(prevElevator+1 )%3];
+
+        draw_horizontal_line(temp_x,temp_y,darkBrown);
         draw_horizontal_line(elevator1_x,elevator1_y,GREEN);
     }
 
